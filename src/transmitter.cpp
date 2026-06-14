@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "radio.h"
+#include "sensors.h"
 
 void setup() {
     bool radio_status = false;
@@ -18,8 +19,8 @@ void setup() {
 }
 
 void loop() {
-    /*
     data.turbidity = get_turbidity();
+    /*
     data.water_lvl = get_water_lvl();
     data.pump_status = get_pump_status();
     data.bat_lvl = get_bat_lvl();
