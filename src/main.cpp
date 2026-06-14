@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <RadioLib.h>
 
-#ifdef LORAIN_RX
+#ifdef LORABLUE_RX
 #include <bluefruit.h>
 #endif
 
@@ -29,7 +29,7 @@ struct __attribute__((packed)) TelemetryData {
 // =============================================================================
 // TX SPECIFIC VARIABLES & FUNCTIONS
 // =============================================================================
-#ifdef LORAIN_TX
+#ifdef LORABLUE_TX
 TelemetryData txData;
 unsigned long lastTransmitTime = 0;
 const unsigned long transmitInterval = 10000; // 10 seconds
@@ -41,15 +41,12 @@ float mapFloat(float x, float in_min, float in_max, float out_min, float out_max
 
 // Real Battery Reading (Specific to XIAO nRF52840 hardware)
 float readRealBattery() {
-  // Activate the battery reading pin on the board
   digitalWrite(VBAT_ENABLE, LOW); 
-  delay(5); // Time for the voltage to stabilize in the divider
+  delay(5); 
   
   int rawBat = analogRead(PIN_VBAT);
-  digitalWrite(VBAT_ENABLE, HIGH); // Turn off to save energy
+  digitalWrite(VBAT_ENABLE, HIGH); 
   
-  // On the XIAO, the voltage drops across a voltage divider.
-  // Approximate values (10-bit ADC): 4.2V (100%) = ~430 RAW | 3.2V (0%) = ~330 RAW
   int constrainedBat = constrain(rawBat, 330, 430);
   return mapFloat(constrainedBat, 330, 430, 0.0, 100.0);
 }
@@ -58,7 +55,7 @@ float readRealBattery() {
 // =============================================================================
 // RX SPECIFIC VARIABLES & FUNCTIONS
 // =============================================================================
-#ifdef LORAIN_RX
+#ifdef LORABLUE_RX
 TelemetryData rxData;
 BLEUart bleuart;
 
@@ -91,7 +88,9 @@ void setupBLE() {
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
   Bluefruit.begin();
   Bluefruit.setTxPower(4);
-  Bluefruit.setName("LoRain_Gateway");
+  
+  // Rebranded BLE Device Name
+  Bluefruit.setName("LoRaBlue_Gateway");
 
   bleuart.setRxCallback(bleUartRxCallback);
   bleuart.begin();
@@ -107,7 +106,7 @@ void setupBLE() {
   Bluefruit.Advertising.setFastTimeout(30);
   Bluefruit.Advertising.start(0);
 
-  Serial.println(F("[BLE] Advertising as 'LoRain_Gateway'"));
+  Serial.println(F("[BLE] Advertising as 'LoRaBlue_Gateway'"));
 }
 #endif
 
@@ -117,18 +116,17 @@ void setupBLE() {
 void setup() {
   Serial.begin(115200);
   
-  #ifdef LORAIN_TX
+  #ifdef LORABLUE_TX
   pinMode(LED_GREEN, OUTPUT);
   digitalWrite(LED_GREEN, HIGH);
   
-  // Configuration of the microcontroller's internal battery pins
   pinMode(VBAT_ENABLE, OUTPUT); 
   digitalWrite(VBAT_ENABLE, HIGH); 
   analogReadResolution(10);
   randomSeed(analogRead(A0));
   #endif
 
-  #ifdef LORAIN_RX
+  #ifdef LORABLUE_RX
   pinMode(LED_BLUE, OUTPUT);
   pinMode(LED_RED,  OUTPUT);
   digitalWrite(LED_BLUE, HIGH);
@@ -137,12 +135,12 @@ void setup() {
 
   while (!Serial && millis() < 3000); 
 
-  #ifdef LORAIN_TX
+  #ifdef LORABLUE_TX
   Serial.println(F("\n[SX1262] Initializing TX Node..."));
   #endif
 
-  #ifdef LORAIN_RX
-  Serial.println(F("\n[SX1262] Initializing RX Node (LoRain IoT Gateway)..."));
+  #ifdef LORABLUE_RX
+  Serial.println(F("\n[SX1262] Initializing RX Node (LoRaBlue IoT Gateway)..."));
   setupBLE();
   #endif
 
@@ -155,11 +153,11 @@ void setup() {
     while (true);
   }
 
-  #ifdef LORAIN_TX
+  #ifdef LORABLUE_TX
   radio.setRfSwitchPins(LORA_RF_SW, LORA_RF_SW);
   #endif
 
-  #ifdef LORAIN_RX
+  #ifdef LORABLUE_RX
   radio.setRfSwitchPins(LORA_RF_SW, RADIOLIB_NC);
   radio.setPacketReceivedAction(onLoRaReceive);
   Serial.println(F("[SX1262] Starting continuous receive mode..."));
@@ -175,7 +173,7 @@ void loop() {
   // ---------------------------------------------------------------------------
   // TX LOGIC
   // ---------------------------------------------------------------------------
-  #ifdef LORAIN_TX
+  #ifdef LORABLUE_TX
   if (millis() - lastTransmitTime >= transmitInterval || lastTransmitTime == 0) {
     lastTransmitTime = millis();
 
@@ -213,7 +211,7 @@ void loop() {
   // ---------------------------------------------------------------------------
   // RX LOGIC
   // ---------------------------------------------------------------------------
-  #ifdef LORAIN_RX
+  #ifdef LORABLUE_RX
   if (hasNewBleCommand) {
     hasNewBleCommand = false;
     String command = bleCommandBuffer;
@@ -239,7 +237,6 @@ void loop() {
     int state = radio.readData((uint8_t*)&rxData, sizeof(TelemetryData));
 
     if (state == RADIOLIB_ERR_NONE) {
-      // 3. Real Physical Data (RSSI) Measured by the Gateway
       float rssi = radio.getRSSI();
 
       Serial.println(F("\n====== [ INCOMING TELEMETRY ] ======"));
@@ -251,7 +248,6 @@ void loop() {
 
       if (Bluefruit.connected()) {
         char jsonPayload[150];
-        // Final JSON format with the new keys
         snprintf(jsonPayload, sizeof(jsonPayload),
                  "{\"water\":%.2f,\"turbidity\":%.1f,\"pump\":%d,\"batt\":%.1f,\"rssi\":%.1f}\n",
                  rxData.water_level,
