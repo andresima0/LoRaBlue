@@ -16,12 +16,13 @@ void setup() {
     digitalWrite(LED_GREEN, HIGH);
 
     set_lora_tx_pins();
+    setup_sensors();
 }
 
 void loop() {
     data.turbidity = get_turbidity();
-    /*
     data.water_lvl = get_water_lvl();
+    /*
     data.pump_status = get_pump_status();
     data.bat_lvl = get_bat_lvl();
     */
