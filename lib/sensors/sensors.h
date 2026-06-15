@@ -2,8 +2,8 @@
 #define SENSORS_H
 
 #include <Arduino.h>
-#include <Wire.h>
 #include <SparkFun_VL53L1X.h>
+#include <Wire.h>
 
 #define TURBIDITY_PIN A0
 

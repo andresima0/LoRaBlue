@@ -1,27 +1,27 @@
 #include "sensors.h"
 
-TwoWire i2c_conn(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn, MY_SDA, MY_SCL);
+TwoWire i2c_conn(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn,
+                 MY_SDA, MY_SCL);
 SFEVL53L1X distance_sensor(i2c_conn);
 
 // #TODO: add initial steps check for turbidity value
 bool setup_sensors(void) {
-    
-    i2c_conn.begin();
-    delay(50); 
 
-    if (distance_sensor.begin() != 0) {
-        
-        return false; 
-    }
+    i2c_conn.begin();
+    delay(50);
+
+    if (distance_sensor.begin() != 0)
+        return false;
 
     distance_sensor.setDistanceModeShort();
     distance_sensor.startRanging();
+
     return true;
 }
 
 float get_turbidity(void) {
     long sum = 0;
-    
+
     for (uint8_t i = 0; i < 10; i++) {
         sum += analogRead(TURBIDITY_PIN);
         delay(5);
@@ -46,5 +46,5 @@ uint16_t get_water_lvl(void) {
         distance = distance_sensor.getDistance();
         distance_sensor.clearInterrupt();
     }
-    return distance;
+    return distance / 1000;
 }

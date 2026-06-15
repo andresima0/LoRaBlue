@@ -5,17 +5,17 @@
 #include <RadioLib.h>
 
 // lora module pins
-#define LORA_NSS   D4
-#define LORA_DIO1  D1
-#define LORA_NRST  D2
-#define LORA_BUSY  D3
+#define LORA_NSS D4
+#define LORA_DIO1 D1
+#define LORA_NRST D2
+#define LORA_BUSY D3
 #define LORA_RF_SW D5
 
-struct __attribute__((packed)) TelemetryData {
+struct TelemetryData {
     float water_lvl;
     float turbidity;
     bool pump_status;
-    float bat_percent; 
+    float bat_percent;
 };
 
 extern SX1262 radio;
