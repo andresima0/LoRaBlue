@@ -5,19 +5,23 @@ SFEVL53L1X distance_sensor(i2c_conn);
 
 // #TODO: add initial steps check for turbidity value
 bool setup_sensors(void) {
+    
+    i2c_conn.begin();
+    delay(50); 
+
     if (distance_sensor.begin() != 0) {
-        while(1) {
-            Serial.println("Error: Distance sensor not found.");
-            delay(1000);
-        }
+        
+        return false; 
     }
 
+    distance_sensor.setDistanceModeShort();
+    distance_sensor.startRanging();
     return true;
 }
 
 float get_turbidity(void) {
     long sum = 0;
-
+    
     for (uint8_t i = 0; i < 10; i++) {
         sum += analogRead(TURBIDITY_PIN);
         delay(5);
@@ -39,24 +43,8 @@ uint16_t get_water_lvl(void) {
     uint16_t distance = 0;
 
     if (distance_sensor.checkForDataReady()) {
-        distance = distance_sensor.getDistance();  // em mm
-        uint8_t rangeStatus = distance_sensor.getRangeStatus();
+        distance = distance_sensor.getDistance();
         distance_sensor.clearInterrupt();
-
-        Serial.print("Distance: ");
-        Serial.print(distance);
-        Serial.print(" mm  |  Status: ");
-
-        switch (rangeStatus) {
-            case 0:  Serial.println("OK");                  break;
-            case 1:  Serial.println("High Signal");          break;
-            case 2:  Serial.println("Low Signal");         break;
-            case 4:  Serial.println("Out of Range");     break;
-            case 7:  Serial.println("No Target");            break;
-            default: Serial.println("Unknown Error");   break;
-        }
     }
-
-    // TODO: what should be done with rangeStatus?
     return distance;
 }
