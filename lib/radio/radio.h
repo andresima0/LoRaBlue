@@ -11,15 +11,14 @@
 #define LORA_BUSY  D3
 #define LORA_RF_SW D5
 
-extern SX1262 radio;
-
-struct TelemetryData {
+struct __attribute__((packed)) TelemetryData {
     float water_lvl;
     float turbidity;
     bool pump_status;
-    bool bat_status;
+    float bat_percent; 
 };
 
+extern SX1262 radio;
 extern TelemetryData data;
 extern unsigned long last_tx_time;
 extern const unsigned long tx_interval;
@@ -30,8 +29,5 @@ bool enable_radio(void);
 // tx procedures
 void set_lora_tx_pins(void);
 bool send_data(TelemetryData data);
-
-// rx procedures
-void set_lora_rx_pins(void);
 
 #endif
