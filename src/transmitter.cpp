@@ -8,6 +8,17 @@ void setup() {
     // Initialize LoRa Radio
     bool radio_status = enable_radio();
 
+    if (radio_status == false) {
+        delay(3e3);
+        Serial.println("Radio functionality must be on!");
+        delay(3e3);
+
+        while (1) {
+            Serial.println("Check LoRa connections!");
+            delay(100);
+        }
+    }
+
     pinMode(LED_GREEN, OUTPUT);
     digitalWrite(LED_GREEN, HIGH);
 
