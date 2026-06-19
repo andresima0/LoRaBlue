@@ -4,6 +4,7 @@ SX1262 radio = new Module(LORA_NSS, LORA_DIO1, LORA_NRST, LORA_BUSY);
 unsigned long last_tx_time = 0;
 const unsigned long tx_interval = 1e4;
 TelemetryData data = {0};
+bool radio_rx_status = false;
 
 bool enable_radio(void) {
     // Carrier Frequency: 915MHz
@@ -53,4 +54,25 @@ bool send_data(TelemetryData data) {
         Serial.println(transmitState);
         return false;
     }
+}
+
+void lora_rx_callback(void) { radio_rx_status = true; }
+
+void set_lora_rx_pins(void) {
+
+    radio.setRfSwitchPins(LORA_RF_SW, RADIOLIB_NC);
+    radio.setPacketReceivedAction(lora_rx_callback);
+
+    Serial.println(F("[SX1262] Starting continuous receive mode..."));
+
+    radio.startReceive();
+}
+
+bool receive_data(TelemetryData *data) {
+    int status = radio.readData((uint8_t *)data, sizeof(TelemetryData));
+
+    if (status == RADIOLIB_ERR_NONE)
+        return true;
+    else
+        return false;
 }

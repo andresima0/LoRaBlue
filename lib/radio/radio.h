@@ -22,6 +22,7 @@ extern SX1262 radio;
 extern TelemetryData data;
 extern unsigned long last_tx_time;
 extern const unsigned long tx_interval;
+extern bool radio_rx_status;
 
 // general procedures
 bool enable_radio(void);
@@ -29,5 +30,10 @@ bool enable_radio(void);
 // tx procedures
 void set_lora_tx_pins(void);
 bool send_data(TelemetryData data);
+
+// rx procedures
+void set_lora_rx_pins(void);
+bool receive_data(TelemetryData *data);
+void lora_rx_callback(void);
 
 #endif
