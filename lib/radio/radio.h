@@ -20,20 +20,26 @@ struct TelemetryData {
 
 extern SX1262 radio;
 extern TelemetryData data;
-extern unsigned long last_tx_time;
-extern const unsigned long tx_interval;
-extern bool radio_rx_status;
 
-// general procedures
+// ------------------------------------
+// SHARED)
+// ------------------------------------
 bool enable_radio(void);
 
-// tx procedures
+// ------------------------------------
+// EXCLUSIVE TO TRANSMITTER(TX)
+// ------------------------------------
+extern unsigned long last_tx_time;
+extern const unsigned long tx_interval;
 void set_lora_tx_pins(void);
-bool send_data(TelemetryData data);
+bool send_data(TelemetryData d);
 
-// rx procedures
+// ------------------------------------
+// EXCLUSIVE TO RECEIVER (RX)
+// ------------------------------------
+extern volatile bool radio_rx_status;
 void set_lora_rx_pins(void);
-bool receive_data(TelemetryData *data);
+bool receive_data(TelemetryData *d);
 void lora_rx_callback(void);
 
 #endif
