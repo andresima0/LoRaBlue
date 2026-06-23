@@ -1,103 +1,161 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#FAFAFA"
-    android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="8dp"
-        android:text="LoRain IoT"
-        android:textColor="#333333"
-        android:textSize="28sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginBottom="32dp"
-        android:text="Status: Disconnected"
-        android:textColor="#F44336"
-        android:textSize="16sp" />
+    android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="32dp"
-        android:background="#FFFFFF"
-        android:elevation="4dp"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="24dp">
 
         <TextView
-            android:id="@+id/tvWaterLevel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Water Level: -- m"
-            android:textSize="18sp" />
+            android:layout_gravity="center"
+            android:layout_marginBottom="8dp"
+            android:text="LoRain IoT"
+            android:textColor="#333333"
+            android:textSize="28sp"
+            android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/tvTurbidity"
+            android:id="@+id/tvStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Turbidity: -- NTU"
-            android:textSize="18sp" />
+            android:layout_gravity="center"
+            android:layout_marginBottom="24dp"
+            android:text="Status: Disconnected"
+            android:textColor="#F44336"
+            android:textSize="16sp" />
 
+        <!-- ============== -->
+        <!-- CISTERN (id=1) -->
+        <!-- ============== -->
         <TextView
-            android:id="@+id/tvPump"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Water Pump: --"
-            android:textSize="18sp" />
+            android:layout_marginBottom="4dp"
+            android:text="Cistern"
+            android:textColor="#555555"
+            android:textSize="14sp"
+            android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvBattery"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="TX Battery: -- %"
-            android:textSize="18sp" />
+            android:layout_marginBottom="16dp"
+            android:background="#FFFFFF"
+            android:elevation="4dp"
+            android:orientation="vertical"
+            android:padding="16dp">
 
+            <TextView
+                android:id="@+id/tvCisternWaterLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Water Level: -- m"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvCisternPump"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Water Pump: --"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvCisternBattery"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Battery: -- %"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvCisternRssi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="RSSI: -- dBm"
+                android:textColor="#888888"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <!-- ========== -->
+        <!-- TANK (id=2) -->
+        <!-- ========== -->
         <TextView
-            android:id="@+id/tvRssi"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Link RSSI: -- dBm"
-            android:textColor="#888888"
-            android:textSize="18sp" />
+            android:layout_marginBottom="4dp"
+            android:text="Tank"
+            android:textColor="#555555"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="32dp"
+            android:background="#FFFFFF"
+            android:elevation="4dp"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tvTankWaterLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Water Level: -- m"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvTankTurbidity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Turbidity: -- NTU"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvTankBattery"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Battery: -- %"
+                android:textSize="18sp" />
+
+            <TextView
+                android:id="@+id/tvTankRssi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="RSSI: -- dBm"
+                android:textColor="#888888"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnConnect"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginBottom="16dp"
+            android:text="SCAN &amp; CONNECT" />
+
+        <Button
+            android:id="@+id/btnTxTest"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginBottom="16dp"
+            android:backgroundTint="#9E9E9E"
+            android:text="TX TEST" />
+
+        <Button
+            android:id="@+id/btnSettings"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:backgroundTint="#607D8B"
+            android:text="KONKER SETTINGS" />
+
     </LinearLayout>
-
-    <Button
-        android:id="@+id/btnConnect"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginBottom="16dp"
-        android:text="SCAN &amp; CONNECT" />
-
-    <Button
-        android:id="@+id/btnTxTest"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:layout_marginBottom="16dp"
-        android:backgroundTint="#9E9E9E"
-        android:text="TX TEST" />
-
-    <!--
-        Opens MqttConfigDialog (Konker server/port/topic/user/pass).
-        Placed below btnTxTest as a secondary action — it configures where
-        telemetry gets forwarded, it doesn't drive the BLE connection itself.
-    -->
-    <Button
-        android:id="@+id/btnSettings"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:backgroundTint="#607D8B"
-        android:text="KONKER SETTINGS" />
-
-</LinearLayout>
+</ScrollView>
