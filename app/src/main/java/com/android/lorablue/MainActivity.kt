@@ -17,15 +17,18 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.android.lorablue.ble.BleConnectionState
+import com.android.lorablue.mqtt.MqttConfigDialog
 
 /**
  * Pure UI layer: binds views, observes BleViewModel via LiveData, and wires
  * click listeners. Contains no BLE/GATT logic — see BleManager and
- * BleViewModel for that.
+ * BleViewModel for that. Contains no MQTT logic either — see MqttPublisher
+ * and MqttConfigDialog.
  *
- * btnTxTest toggle state (isTxTestActive, color) is presentation-only and
- * lives here. It only calls viewModel.sendPing()/sendClear() — the actual
- * GATT write goes through BleManager unchanged.
+ * btnSettings opens MqttConfigDialog (Konker server/port/topic/user/pass).
+ * Saving the dialog has no immediate effect on this Activity beyond a
+ * confirmation Toast — BleViewModel reads the saved config fresh on every
+ * telemetry publish, so there's nothing to "refresh" here.
  */
 @SuppressLint("MissingPermission")
 class MainActivity : AppCompatActivity() {
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvRssi: TextView
     private lateinit var btnConnect: Button
     private lateinit var btnTxTest: Button
+    private lateinit var btnSettings: Button
 
     // Presentation-only toggle state for btnTxTest. Not BLE connection
     // state — this just tracks whether the last command sent was PING
@@ -95,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         tvRssi = findViewById(R.id.tvRssi)
         btnConnect = findViewById(R.id.btnConnect)
         btnTxTest = findViewById(R.id.btnTxTest)
+        btnSettings = findViewById(R.id.btnSettings)
     }
 
     private fun wireClickListeners() {
@@ -115,6 +120,17 @@ class MainActivity : AppCompatActivity() {
                 viewModel.sendClear()
             }
         }
+
+        btnSettings.setOnClickListener {
+            MqttConfigDialog().apply {
+                onConfigSaved = {
+                    // No state to refresh here — BleViewModel re-reads the
+                    // saved config on every publish. This callback exists
+                    // for future use (e.g. showing a "connection test"
+                    // result) without needing to change the dialog's API.
+                }
+            }.show(supportFragmentManager, MqttConfigDialog.TAG)
+        }
     }
 
     private fun observeViewModel() {
@@ -131,6 +147,12 @@ class MainActivity : AppCompatActivity() {
         // Debug messages (PING/CLEAR acks from the firmware) are logged
         // inside BleManager; surfaced here as a lightweight Toast.
         viewModel.debugLog.observe(this) { text ->
+            Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+        }
+
+        // Konker MQTT publish outcomes (success/failure), surfaced the
+        // same lightweight way as BLE debug messages.
+        viewModel.mqttStatus.observe(this) { text ->
             Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
         }
     }

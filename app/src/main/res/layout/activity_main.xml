@@ -84,7 +84,20 @@
         android:id="@+id/btnTxTest"
         android:layout_width="match_parent"
         android:layout_height="60dp"
+        android:layout_marginBottom="16dp"
         android:backgroundTint="#9E9E9E"
         android:text="TX TEST" />
+
+    <!--
+        Opens MqttConfigDialog (Konker server/port/topic/user/pass).
+        Placed below btnTxTest as a secondary action — it configures where
+        telemetry gets forwarded, it doesn't drive the BLE connection itself.
+    -->
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:backgroundTint="#607D8B"
+        android:text="KONKER SETTINGS" />
 
 </LinearLayout>
