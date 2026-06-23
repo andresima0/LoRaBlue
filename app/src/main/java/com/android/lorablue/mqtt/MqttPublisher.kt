@@ -1,7 +1,7 @@
 package com.android.lorablue.mqtt
 
 import android.util.Log
-import com.android.lorablue.data.TelemetryData
+import com.android.lorablue.data.TelemetryReading
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttException
@@ -14,6 +14,11 @@ import kotlin.concurrent.thread
  * Publishes telemetry to a Konker MQTT broker. Connects, publishes one
  * message, then disconnects — this is the connect-per-publish pattern from
  * wifiradar's btnPublish flow, not a long-lived persistent connection.
+ *
+ * Cistern and Tank readings go to different topics (config.cisternTopic /
+ * config.tankTopic) since Konker treats them as separate devices. Each
+ * call publishes exactly one reading to exactly one topic — there is no
+ * batching of both devices into a single MQTT message.
  *
  * A short-lived connection per message is intentional here: telemetry from
  * the LoRa gateway arrives sporadically (every few seconds at most), so
@@ -34,19 +39,46 @@ class MqttPublisher {
 
     var onPublishResult: (success: Boolean, message: String) -> Unit = { _, _ -> }
 
-    fun publish(config: MqttConfig, telemetry: TelemetryData) {
-        if (!config.isComplete) {
-            Log.w(TAG, "Publish skipped — MQTT config incomplete (server/topic missing)")
-            return
+    fun publish(config: MqttConfig, reading: TelemetryReading) {
+        val topic: String
+        val payload: String
+
+        when (reading) {
+            is TelemetryReading.Cistern -> {
+                if (!config.isCisternComplete) {
+                    Log.w(TAG, "Publish skipped — Cistern topic not configured")
+                    return
+                }
+                topic = config.cisternTopic
+                payload = JSONObject().apply {
+                    put("id", TelemetryReading.DEVICE_ID_CISTERN)
+                    put("water_lvl", reading.waterLevel)
+                    put("water_pump", reading.pumpOn)
+                    put("batt_lvl", reading.batteryPercent)
+                    put("rssi_lvl", reading.rssiDbm)
+                }.toString()
+            }
+
+            is TelemetryReading.Tank -> {
+                if (!config.isTankComplete) {
+                    Log.w(TAG, "Publish skipped — Tank topic not configured")
+                    return
+                }
+                topic = config.tankTopic
+                payload = JSONObject().apply {
+                    put("id", TelemetryReading.DEVICE_ID_TANK)
+                    put("water_lvl", reading.waterLevel)
+                    put("turbidity", reading.turbidity)
+                    put("batt_lvl", reading.batteryPercent)
+                    put("rssi_lvl", reading.rssiDbm)
+                }.toString()
+            }
         }
 
-        val payload = JSONObject().apply {
-            put("water", telemetry.waterLevel)
-            put("turbidity", telemetry.turbidity)
-            put("pump", if (telemetry.pumpOn) 1 else 0)
-            put("batt", telemetry.batteryPercent)
-            put("rssi", telemetry.rssiDbm)
-        }.toString()
+        if (config.server.isBlank()) {
+            Log.w(TAG, "Publish skipped — MQTT server not configured")
+            return
+        }
 
         thread {
             val result = runCatching {
@@ -62,7 +94,7 @@ class MqttPublisher {
                     }
                 }
                 client.connect(opts)
-                client.publish(config.topic, MqttMessage(payload.toByteArray()).apply { qos = 1 })
+                client.publish(topic, MqttMessage(payload.toByteArray()).apply { qos = 1 })
                 client.disconnect()
                 client.close()
                 payload
@@ -70,11 +102,11 @@ class MqttPublisher {
 
             result.fold(
                 onSuccess = {
-                    Log.d(TAG, "Published to ${config.topic}: $it")
-                    onPublishResult(true, "Published to Konker: ${config.topic}")
+                    Log.d(TAG, "Published to $topic: $it")
+                    onPublishResult(true, "Published to Konker [$topic]")
                 },
                 onFailure = { e ->
-                    val msg = formatError(e)
+                    val msg = formatError(e, topic)
                     Log.e(TAG, msg)
                     onPublishResult(false, msg)
                 }
@@ -82,8 +114,8 @@ class MqttPublisher {
         }
     }
 
-    private fun formatError(e: Throwable): String {
+    private fun formatError(e: Throwable, topic: String): String {
         val reason = (e as? MqttException)?.let { "reasonCode=${it.reasonCode} " } ?: ""
-        return "MQTT error: ${e.javaClass.simpleName} $reason${e.message ?: ""}"
+        return "MQTT error [$topic]: ${e.javaClass.simpleName} $reason${e.message ?: ""}"
     }
 }

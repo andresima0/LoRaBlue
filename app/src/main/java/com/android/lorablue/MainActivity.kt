@@ -25,10 +25,10 @@ import com.android.lorablue.mqtt.MqttConfigDialog
  * BleViewModel for that. Contains no MQTT logic either — see MqttPublisher
  * and MqttConfigDialog.
  *
- * btnSettings opens MqttConfigDialog (Konker server/port/topic/user/pass).
- * Saving the dialog has no immediate effect on this Activity beyond a
- * confirmation Toast — BleViewModel reads the saved config fresh on every
- * telemetry publish, so there's nothing to "refresh" here.
+ * Two telemetry cards are shown: Cistern (id=1) and Tank (id=2). Each is
+ * updated independently as its corresponding LiveData emits — receiving a
+ * Cistern reading does not touch the Tank card's displayed values, and
+ * vice versa.
  */
 @SuppressLint("MissingPermission")
 class MainActivity : AppCompatActivity() {
@@ -36,11 +36,19 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: BleViewModel by viewModels()
 
     private lateinit var tvStatus: TextView
-    private lateinit var tvWaterLevel: TextView
-    private lateinit var tvTurbidity: TextView
-    private lateinit var tvPump: TextView
-    private lateinit var tvBattery: TextView
-    private lateinit var tvRssi: TextView
+
+    // Cistern card
+    private lateinit var tvCisternWaterLevel: TextView
+    private lateinit var tvCisternPump: TextView
+    private lateinit var tvCisternBattery: TextView
+    private lateinit var tvCisternRssi: TextView
+
+    // Tank card
+    private lateinit var tvTankWaterLevel: TextView
+    private lateinit var tvTankTurbidity: TextView
+    private lateinit var tvTankBattery: TextView
+    private lateinit var tvTankRssi: TextView
+
     private lateinit var btnConnect: Button
     private lateinit var btnTxTest: Button
     private lateinit var btnSettings: Button
@@ -92,11 +100,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun bindViews() {
         tvStatus = findViewById(R.id.tvStatus)
-        tvWaterLevel = findViewById(R.id.tvWaterLevel)
-        tvTurbidity = findViewById(R.id.tvTurbidity)
-        tvPump = findViewById(R.id.tvPump)
-        tvBattery = findViewById(R.id.tvBattery)
-        tvRssi = findViewById(R.id.tvRssi)
+
+        tvCisternWaterLevel = findViewById(R.id.tvCisternWaterLevel)
+        tvCisternPump = findViewById(R.id.tvCisternPump)
+        tvCisternBattery = findViewById(R.id.tvCisternBattery)
+        tvCisternRssi = findViewById(R.id.tvCisternRssi)
+
+        tvTankWaterLevel = findViewById(R.id.tvTankWaterLevel)
+        tvTankTurbidity = findViewById(R.id.tvTankTurbidity)
+        tvTankBattery = findViewById(R.id.tvTankBattery)
+        tvTankRssi = findViewById(R.id.tvTankRssi)
+
         btnConnect = findViewById(R.id.btnConnect)
         btnTxTest = findViewById(R.id.btnTxTest)
         btnSettings = findViewById(R.id.btnSettings)
@@ -111,37 +125,34 @@ class MainActivity : AppCompatActivity() {
             isTxTestActive = !isTxTestActive
 
             if (isTxTestActive) {
-                // State is ON: green + PING
                 btnTxTest.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#4CAF50"))
                 viewModel.sendPing()
             } else {
-                // State is OFF: gray + CLEAR
                 btnTxTest.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
                 viewModel.sendClear()
             }
         }
 
         btnSettings.setOnClickListener {
-            MqttConfigDialog().apply {
-                onConfigSaved = {
-                    // No state to refresh here — BleViewModel re-reads the
-                    // saved config on every publish. This callback exists
-                    // for future use (e.g. showing a "connection test"
-                    // result) without needing to change the dialog's API.
-                }
-            }.show(supportFragmentManager, MqttConfigDialog.TAG)
+            MqttConfigDialog().show(supportFragmentManager, MqttConfigDialog.TAG)
         }
     }
 
     private fun observeViewModel() {
         viewModel.connectionState.observe(this) { state -> renderConnectionState(state) }
 
-        viewModel.telemetry.observe(this) { data ->
-            tvWaterLevel.text = String.format("Water Level: %.2f m", data.waterLevel)
-            tvTurbidity.text = String.format("Turbidity: %.2f NTU", data.turbidity)
-            tvPump.text = if (data.pumpOn) "Water Pump: ON" else "Water Pump: OFF"
-            tvBattery.text = String.format("TX Battery: %.1f %%", data.batteryPercent)
-            tvRssi.text = String.format("Link RSSI: %.1f dBm", data.rssiDbm)
+        viewModel.cisternData.observe(this) { data ->
+            tvCisternWaterLevel.text = String.format("Water Level: %.2f m", data.waterLevel)
+            tvCisternPump.text = if (data.pumpOn) "Water Pump: ON" else "Water Pump: OFF"
+            tvCisternBattery.text = String.format("Battery: %.0f %%", data.batteryPercent)
+            tvCisternRssi.text = String.format("RSSI: %.1f dBm", data.rssiDbm)
+        }
+
+        viewModel.tankData.observe(this) { data ->
+            tvTankWaterLevel.text = String.format("Water Level: %.2f m", data.waterLevel)
+            tvTankTurbidity.text = String.format("Turbidity: %.0f NTU", data.turbidity)
+            tvTankBattery.text = String.format("Battery: %.0f %%", data.batteryPercent)
+            tvTankRssi.text = String.format("RSSI: %.1f dBm", data.rssiDbm)
         }
 
         // Debug messages (PING/CLEAR acks from the firmware) are logged
@@ -175,19 +186,12 @@ class MainActivity : AppCompatActivity() {
         tvStatus.text = text
         tvStatus.setTextColor(Color.parseColor(color))
 
-        // If we lose the connection, the toggle's visual state goes stale
-        // (it could be stuck green even though CLEAR was never confirmed
-        // by the firmware). Reset it on disconnect so it always starts
-        // from a known OFF/gray state on the next connection.
         if (state is BleConnectionState.Disconnected) {
             isTxTestActive = false
             btnTxTest.backgroundTintList = ColorStateList.valueOf(Color.parseColor("#9E9E9E"))
         }
     }
 
-    // =========================================================================
-    // Centralises the "is the BT radio actually on?" check.
-    // =========================================================================
     private fun ensureBluetoothEnabledThenScan() {
         if (!viewModel.isBluetoothEnabled) {
             enableBluetoothLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
@@ -196,9 +200,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // =========================================================================
-    // RUNTIME PERMISSIONS
-    // =========================================================================
     private fun checkBlePermissions(): Boolean {
         val required = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)

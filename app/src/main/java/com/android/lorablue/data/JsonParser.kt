@@ -12,6 +12,10 @@ import org.json.JSONObject
  * still fragment a message across multiple notifications regardless of
  * negotiated MTU, so chunks are appended here and only flushed into
  * complete messages when a newline is found.
+ *
+ * Two devices share the same gateway and the same TX characteristic, so a
+ * single buffer/parser instance correctly interleaves messages from both —
+ * routing happens per-message via the "id" field, not per-connection.
  */
 class JsonParser {
 
@@ -64,16 +68,12 @@ class JsonParser {
             val json = JSONObject(message)
 
             when {
-                json.has("water") -> {
-                    val telemetry = TelemetryData(
-                        waterLevel = json.getDouble("water"),
-                        turbidity = json.getDouble("turbidity"),
-                        pumpOn = json.getInt("pump") == 1,
-                        batteryPercent = json.getDouble("batt"),
-                        rssiDbm = json.getDouble("rssi")
-                    )
-                    BleMessage.Telemetry(telemetry)
-                }
+                // Telemetry packets always carry "id" — route by device id
+                // rather than by guessing from which fields are present.
+                // This is more robust than "has(turbidity)" style checks
+                // because it fails loudly (Malformed) if a device sends an
+                // id it shouldn't, instead of silently misreading fields.
+                json.has("id") -> parseTelemetry(json, message)
 
                 json.has("debug") -> BleMessage.Debug(json.getString("debug"))
 
@@ -86,5 +86,32 @@ class JsonParser {
             Log.e(TAG, "Discarding bad packet: '$message' — ${e.message}")
             BleMessage.Malformed(message, e.message)
         }
+    }
+
+    private fun parseTelemetry(json: JSONObject, raw: String): BleMessage {
+        val deviceId = json.getInt("id")
+
+        val reading: TelemetryReading = when (deviceId) {
+            TelemetryReading.DEVICE_ID_CISTERN -> TelemetryReading.Cistern(
+                waterLevel = json.getDouble("water_lvl"),
+                pumpOn = json.getBoolean("water_pump"),
+                batteryPercent = json.getDouble("batt_lvl"),
+                rssiDbm = json.getDouble("rssi_lvl")
+            )
+
+            TelemetryReading.DEVICE_ID_TANK -> TelemetryReading.Tank(
+                waterLevel = json.getDouble("water_lvl"),
+                turbidity = json.getDouble("turbidity"),
+                batteryPercent = json.getDouble("batt_lvl"),
+                rssiDbm = json.getDouble("rssi_lvl")
+            )
+
+            else -> {
+                Log.w(TAG, "Unknown device id=$deviceId in: $raw")
+                return BleMessage.Unknown(raw)
+            }
+        }
+
+        return BleMessage.Telemetry(reading)
     }
 }

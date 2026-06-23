@@ -5,20 +5,24 @@ import androidx.core.content.edit
 
 /**
  * MQTT connection parameters needed to publish to a Konker broker.
- * Konker's MQTT integration authenticates with username/password exactly
- * like a generic broker (no special device-id scheme), so this mirrors the
- * publisher config fields from the wifiradar reference app: server, port,
- * topic, user, pass.
+ * Server/port/user/pass are shared across both devices — Konker
+ * distinguishes the two devices by the broker-side client/auth mechanism,
+ * not by anything this app controls — but each device needs its own topic
+ * since Cistern and Tank are registered as separate devices in Konker.
  */
 data class MqttConfig(
     val server: String,
     val port: String,
-    val topic: String,
+    val cisternTopic: String,
+    val tankTopic: String,
     val user: String,
     val pass: String
 ) {
-    val isComplete: Boolean
-        get() = server.isNotBlank() && topic.isNotBlank()
+    val isCisternComplete: Boolean
+        get() = server.isNotBlank() && cisternTopic.isNotBlank()
+
+    val isTankComplete: Boolean
+        get() = server.isNotBlank() && tankTopic.isNotBlank()
 
     val brokerUrl: String
         get() = "tcp://$server:${port.ifBlank { "1883" }}"
@@ -36,17 +40,19 @@ class MqttConfigStore(context: Context) {
 
     fun load(): MqttConfig = MqttConfig(
         server = prefs.getString("server", "") ?: "",
-        port   = prefs.getString("port", "1883") ?: "1883",
-        topic  = prefs.getString("topic", "") ?: "",
-        user   = prefs.getString("user", "") ?: "",
-        pass   = prefs.getString("pass", "") ?: ""
+        port = prefs.getString("port", "1883") ?: "1883",
+        cisternTopic = prefs.getString("cistern_topic", "") ?: "",
+        tankTopic = prefs.getString("tank_topic", "") ?: "",
+        user = prefs.getString("user", "") ?: "",
+        pass = prefs.getString("pass", "") ?: ""
     )
 
     fun save(config: MqttConfig) {
         prefs.edit {
             putString("server", config.server)
             putString("port", config.port)
-            putString("topic", config.topic)
+            putString("cistern_topic", config.cisternTopic)
+            putString("tank_topic", config.tankTopic)
             putString("user", config.user)
             putString("pass", config.pass)
         }

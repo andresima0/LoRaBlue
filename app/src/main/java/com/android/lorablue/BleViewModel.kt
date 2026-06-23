@@ -7,7 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import com.android.lorablue.ble.BleConnectionState
 import com.android.lorablue.ble.BleManager
 import com.android.lorablue.data.BleMessage
-import com.android.lorablue.data.TelemetryData
+import com.android.lorablue.data.TelemetryReading
 import com.android.lorablue.mqtt.MqttConfigStore
 import com.android.lorablue.mqtt.MqttPublisher
 
@@ -19,14 +19,17 @@ import com.android.lorablue.mqtt.MqttPublisher
  * AndroidViewModel (not plain ViewModel) is used because BleManager needs a
  * Context to fetch the BluetoothManager system service.
  *
- * Konker publishing: every time a Telemetry message arrives from the
- * gateway, this ViewModel automatically forwards it to MqttPublisher using
- * whatever MqttConfig is currently saved in MqttConfigStore. If the config
- * is incomplete (no server/topic saved yet), MqttPublisher silently skips
- * the publish — there's no error shown to the user in that case, since an
- * unconfigured Konker connection is a valid, expected state (BLE/LoRa
+ * Two devices (Cistern id=1, Tank id=2) share the same gateway connection,
+ * so they're exposed as two separate LiveData streams rather than one —
+ * the UI updates whichever card corresponds to the device that just sent
+ * a reading, without touching the other card's last-known values.
+ *
+ * Konker publishing: every time a Telemetry message arrives, this
+ * ViewModel forwards it to MqttPublisher, which picks the Cistern or Tank
+ * topic based on the reading's type. If the relevant topic isn't
+ * configured yet, MqttPublisher silently skips that publish — BLE/LoRa
  * telemetry keeps working regardless of whether Konker forwarding is set
- * up).
+ * up for one, both, or neither device.
  */
 class BleViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -38,8 +41,11 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
         MutableLiveData<BleConnectionState>(BleConnectionState.Disconnected)
     val connectionState: LiveData<BleConnectionState> = _connectionState
 
-    private val _telemetry = MutableLiveData<TelemetryData>()
-    val telemetry: LiveData<TelemetryData> = _telemetry
+    private val _cisternData = MutableLiveData<TelemetryReading.Cistern>()
+    val cisternData: LiveData<TelemetryReading.Cistern> = _cisternData
+
+    private val _tankData = MutableLiveData<TelemetryReading.Tank>()
+    val tankData: LiveData<TelemetryReading.Tank> = _tankData
 
     private val _debugLog = MutableLiveData<String>()
     val debugLog: LiveData<String> = _debugLog
@@ -59,18 +65,16 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
     private fun handleMessage(message: BleMessage) {
         when (message) {
             is BleMessage.Telemetry -> {
-                _telemetry.postValue(message.data)
-                publishToKonker(message.data)
+                when (val reading = message.reading) {
+                    is TelemetryReading.Cistern -> _cisternData.postValue(reading)
+                    is TelemetryReading.Tank -> _tankData.postValue(reading)
+                }
+                mqttPublisher.publish(mqttConfigStore.load(), message.reading)
             }
             is BleMessage.Debug -> _debugLog.postValue(message.text)
             is BleMessage.Unknown -> { /* logged inside JsonParser already */ }
             is BleMessage.Malformed -> { /* logged inside JsonParser already */ }
         }
-    }
-
-    private fun publishToKonker(data: TelemetryData) {
-        val config = mqttConfigStore.load()
-        mqttPublisher.publish(config, data)
     }
 
     val isBluetoothEnabled: Boolean
