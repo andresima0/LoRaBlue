@@ -2,14 +2,11 @@
 #include "radio.h"
 #include <Arduino.h>
 
-TelemetryData data = {0};
-
 void setup() {
     Serial.begin(115200);
 
     // Security delay for USB native da XIAO nRF52840
-    while (!Serial && millis() < 5000)
-        ;
+    while (!Serial && millis() < 5000);
 
     while (true) {
         bool status = enable_radio();
@@ -24,12 +21,12 @@ void setup() {
         break;
     }
 
-    Serial.println(
-        F("\n[SX1262] Initializing RX Node (LoRaBlue IoT Gateway)..."));
+    Serial.println(F("\n[SX1262] Initializing RX Node (LoRaBlue IoT Gateway)..."));
     setupBLE();
 }
 
 void loop() {
+
     if (hasNewBleCommand) {
         hasNewBleCommand = false;
         String command = bleCommandBuffer;
@@ -43,11 +40,7 @@ void loop() {
         }
     }
 
-    if (millis() - lastHeartbeat > 5000) {
-        Serial.println(F("[System] Gateway is listening..."));
-        lastHeartbeat = millis();
-    }
-
+    //Gateway Heartbeat
     if (millis() - lastHeartbeat > 5000) {
         Serial.println(F("[System] Gateway is listening..."));
         lastHeartbeat = millis();
@@ -59,7 +52,7 @@ void loop() {
         float rssi = radio.getRSSI();
 
         if (receive_data(&data)) {
-            Serial.printf("[receiver] Data Received: \n");
+            Serial.printf("\n[receiver] Data Received: \n");
             Serial.printf("water_lvl: %.2f m\n", data.water_lvl);
             Serial.printf("turbidity: %.2f NTU\n", data.turbidity);
             Serial.printf("pump_status: %s\n", data.pump_status ? "ON" : "OFF");

@@ -1,6 +1,13 @@
 #include "bt.h"
 
-void setup_ble(void) {
+BLEUart bleuart;
+
+volatile bool loraPacketReady = false;
+String bleCommandBuffer = "";
+volatile bool hasNewBleCommand = false;
+unsigned long lastHeartbeat = 0;
+
+void setupBLE(void) {
     Serial.println(F("[BLE] Initializing Bluetooth Low Energy..."));
 
     Bluefruit.configPrphConn(247, 247, 2, 2);
