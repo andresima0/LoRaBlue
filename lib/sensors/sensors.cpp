@@ -30,12 +30,6 @@ float get_turbidity(void) {
     int raw_read = constrain(sum / 10, DIRTY_WATER, CLEAN_WATER);
     float percent = map(raw_read, DIRTY_WATER, CLEAN_WATER, 0, 100);
 
-    Serial.print("[Sensor] RAW: ");
-    Serial.print(raw_read);
-    Serial.print(" | Turbidity: ");
-    Serial.print(percent, 1);
-    Serial.println("%");
-
     return percent;
 }
 
