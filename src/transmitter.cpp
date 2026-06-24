@@ -2,6 +2,10 @@
 #include "sensors.h"
 #include <Arduino.h>
 
+#ifndef DEVICE_ID
+#error "DEVICE_ID not defined — set build_flags = -DDEVICE_ID=DEVICE_ID_CISTERN (or _TANK) in platformio.ini"
+#endif
+
 void setup() {
     Serial.begin(115200);
 
@@ -31,6 +35,11 @@ void setup() {
     pinMode(VBAT_ENABLE, OUTPUT);
     digitalWrite(VBAT_ENABLE, HIGH);
     analogReadResolution(10);
+
+    data.id = DEVICE_ID;
+
+    Serial.print(F("[TX] Device role: "));
+    Serial.println(DEVICE_ID == DEVICE_ID_CISTERN ? "Cistern" : "Tank");
 }
 
 void loop() {
@@ -38,16 +47,16 @@ void loop() {
     if (millis() - last_tx_time >= tx_interval || last_tx_time == 0) {
         last_tx_time = millis();
 
-        data.turbidity = get_turbidity();
         data.water_lvl = get_water_lvl();
-
-        // Default values to prevent the Android app from crashing
-        data.pump_status = false;
         data.bat_percent = 100;
-        /*
-        data.pump_status = get_pump_status();
-        data.bat_percent = get_bat_lvl();
-        */
+     #if DEVICE_ID == DEVICE_ID_CISTERN
+            data.turbidity = 0.0f;
+            data.pump_status = false;
+            
+        #elif DEVICE_ID == DEVICE_ID_TANK
+            data.turbidity = get_turbidity();
+            data.pump_status = false;
+        #endif
 
         send_data(data);
     }

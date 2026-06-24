@@ -11,11 +11,15 @@
 #define LORA_BUSY D3
 #define LORA_RF_SW D5
 
+#define DEVICE_ID_CISTERN 1
+#define DEVICE_ID_TANK    2
+
 struct TelemetryData {
-    float water_lvl;
-    float turbidity;
-    bool pump_status;
-    float bat_percent;
+    uint8_t id;            // DEVICE_ID_CISTERN or DEVICE_ID_TANK
+    float water_lvl;       // both devices
+    float turbidity;       // Tank only
+    bool pump_status;      // Cistern only
+    float bat_percent;     // both devices
 };
 
 extern SX1262 radio;
