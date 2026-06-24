@@ -22,23 +22,27 @@ bool setup_sensors(void) {
 float get_turbidity(void) {
     long sum = 0;
 
-    for (uint8_t i = 0; i < 10; i++) {
+  for (uint8_t i = 0; i < 10; i++) {
         sum += analogRead(TURBIDITY_PIN);
         delay(5);
     }
 
     int raw_read = constrain(sum / 10, DIRTY_WATER, CLEAN_WATER);
-    float percent = map(raw_read, DIRTY_WATER, CLEAN_WATER, 0, 100);
+    float ntu_value = map(raw_read, DIRTY_WATER, CLEAN_WATER, 3000, 0);
 
-    return percent;
+    if (ntu_value < 0) {
+        ntu_value = 0;
+    }
+
+    return ntu_value;
 }
 
-uint16_t get_water_lvl(void) {
+float get_water_lvl(void) {
     uint16_t distance = 0;
 
     if (distance_sensor.checkForDataReady()) {
         distance = distance_sensor.getDistance();
         distance_sensor.clearInterrupt();
     }
-    return distance / 1000;
+    return distance / 1000.0f;
 }

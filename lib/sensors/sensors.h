@@ -19,6 +19,6 @@ extern SFEVL53L1X distance_sensor;
 bool setup_sensors(void);
 
 float get_turbidity(void);
-uint16_t get_water_lvl(void);
+float get_water_lvl(void);
 
 #endif
