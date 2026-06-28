@@ -2,6 +2,7 @@ package com.android.lorablue.mqtt
 
 import android.util.Log
 import com.android.lorablue.data.TelemetryReading
+import com.android.lorablue.data.WaterColumnReading
 import org.eclipse.paho.client.mqttv3.MqttClient
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttException
@@ -11,25 +12,30 @@ import org.json.JSONObject
 import kotlin.concurrent.thread
 
 /**
- * Publishes telemetry to a Konker MQTT broker. Connects, publishes one
- * message, then disconnects — this is the connect-per-publish pattern from
- * wifiradar's btnPublish flow, not a long-lived persistent connection.
+ * Publishes telemetry to the configured IoT platform (ThingsBoard or Konker).
  *
- * Cistern and Tank readings go to different topics (config.cisternTopic /
- * config.tankTopic) since Konker treats them as separate devices. Each
- * call publishes exactly one reading to exactly one topic — there is no
- * batching of both devices into a single MQTT message.
+ * Platform differences handled here:
  *
- * A short-lived connection per message is intentional here: telemetry from
- * the LoRa gateway arrives sporadically (every few seconds at most), so
- * paying the TCP+MQTT handshake cost per publish is simpler and more
- * robust against flaky Wi-Fi than maintaining a background keep-alive
- * connection. If publish frequency increases later, this is the place to
- * switch to a persistent client with reconnect logic.
+ *  ThingsBoard — both devices share the fixed topic "v1/devices/me/telemetry";
+ *    device identity comes from the access token passed as MQTT Username.
+ *    Two separate connects are issued (one per device) with different tokens.
  *
- * Every call runs on a background thread (kotlin.concurrent.thread) because
- * MqttClient.connect()/publish() are blocking calls and must never run on
- * the main/UI thread.
+ *  Konker — shared Username/Password auth; device identity comes from the
+ *    topic (each device has its own topic configured in the dialog).
+ *
+ * Water level fields: the payload sends the already-converted water
+ * column height ("water_dpt", meters) and fill percentage ("water_pct"),
+ * not the raw TOF sensor distance. Both are computed by
+ * WaterLevelCalculator from the user-configured tank/cistern total depth
+ * (see TankDepthConfigStore) and passed in via [WaterColumnReading]. If
+ * the total depth hasn't been configured yet for a device, both fields
+ * are sent as JSON null — there's nothing meaningful to report.
+ *
+ * Connect-per-publish pattern: opens a fresh connection, publishes one
+ * message, then disconnects. Acceptable because LoRa telemetry arrives every
+ * few seconds at most. Switch to a persistent client if frequency increases.
+ *
+ * Always runs on a background thread — MqttClient.connect()/publish() block.
  */
 class MqttPublisher {
 
@@ -39,58 +45,112 @@ class MqttPublisher {
 
     var onPublishResult: (success: Boolean, message: String) -> Unit = { _, _ -> }
 
-    fun publish(config: MqttConfig, reading: TelemetryReading) {
+    fun publish(config: MqttConfig, reading: TelemetryReading, waterColumn: WaterColumnReading) {
+        when (config) {
+            is MqttConfig.ThingsBoard -> publishThingsBoard(config, reading, waterColumn)
+            is MqttConfig.Konker      -> publishKonker(config, reading, waterColumn)
+        }
+    }
+
+    // ── ThingsBoard ──────────────────────────────────────────────────────────
+
+    private fun publishThingsBoard(
+        config: MqttConfig.ThingsBoard,
+        reading: TelemetryReading,
+        waterColumn: WaterColumnReading
+    ) {
+        val token: String
+        val payload: String
+
+        when (reading) {
+            is TelemetryReading.Cistern -> {
+                if (!config.isCisternConfigured) {
+                    Log.w(TAG, "[TB] Publish skipped — Cistern token not configured")
+                    return
+                }
+                token   = config.cisternToken
+                payload = buildCisternPayload(reading, waterColumn)  // no "id" field — token is the identity
+            }
+            is TelemetryReading.Tank -> {
+                if (!config.isTankConfigured) {
+                    Log.w(TAG, "[TB] Publish skipped — Tank token not configured")
+                    return
+                }
+                token   = config.tankToken
+                payload = buildTankPayload(reading, waterColumn)
+            }
+        }
+
+        doPublish(
+            brokerUrl = config.brokerUrl,
+            topic     = config.telemetryTopic,
+            username  = token,
+            password  = null,           // ThingsBoard ignores the password with token auth
+            payload   = payload,
+            label     = "ThingsBoard"
+        )
+    }
+
+    // ── Konker ───────────────────────────────────────────────────────────────
+
+    private fun publishKonker(
+        config: MqttConfig.Konker,
+        reading: TelemetryReading,
+        waterColumn: WaterColumnReading
+    ) {
         val topic: String
         val payload: String
 
         when (reading) {
             is TelemetryReading.Cistern -> {
-                if (!config.isCisternComplete) {
-                    Log.w(TAG, "Publish skipped — Cistern topic not configured")
+                if (!config.isCisternConfigured) {
+                    Log.w(TAG, "[Konker] Publish skipped — Cistern topic not configured")
                     return
                 }
-                topic = config.cisternTopic
-                payload = JSONObject().apply {
-                    put("id", TelemetryReading.DEVICE_ID_CISTERN)
-                    put("water_lvl", reading.waterLevel)
-                    put("water_pump", reading.pumpOn)
-                    put("batt_lvl", reading.batteryPercent)
-                    put("rssi_lvl", reading.rssiDbm)
-                }.toString()
+                topic   = config.cisternTopic
+                payload = buildCisternPayload(reading, waterColumn, includeId = true)
             }
-
             is TelemetryReading.Tank -> {
-                if (!config.isTankComplete) {
-                    Log.w(TAG, "Publish skipped — Tank topic not configured")
+                if (!config.isTankConfigured) {
+                    Log.w(TAG, "[Konker] Publish skipped — Tank topic not configured")
                     return
                 }
-                topic = config.tankTopic
-                payload = JSONObject().apply {
-                    put("id", TelemetryReading.DEVICE_ID_TANK)
-                    put("water_lvl", reading.waterLevel)
-                    put("turbidity", reading.turbidity)
-                    put("batt_lvl", reading.batteryPercent)
-                    put("rssi_lvl", reading.rssiDbm)
-                }.toString()
+                topic   = config.tankTopic
+                payload = buildTankPayload(reading, waterColumn, includeId = true)
             }
         }
 
-        if (config.server.isBlank()) {
-            Log.w(TAG, "Publish skipped — MQTT server not configured")
-            return
-        }
+        doPublish(
+            brokerUrl = config.brokerUrl,
+            topic     = topic,
+            username  = config.user,
+            password  = config.pass.ifBlank { null },
+            payload   = payload,
+            label     = "Konker"
+        )
+    }
 
+    // ── Shared publish logic ─────────────────────────────────────────────────
+
+    private fun doPublish(
+        brokerUrl: String,
+        topic: String,
+        username: String,
+        password: String?,
+        payload: String,
+        label: String
+    ) {
         thread {
             val result = runCatching {
-                val clientId = "lorablue-pub-" + System.currentTimeMillis()
-                val client = MqttClient(config.brokerUrl, clientId, MemoryPersistence())
+                val clientId = "lorablue-${System.currentTimeMillis()}"
+                val client   = MqttClient(brokerUrl, clientId, MemoryPersistence())
                 val opts = MqttConnectOptions().apply {
-                    isCleanSession = true
+                    isCleanSession    = true
                     connectionTimeout = 15
                     keepAliveInterval = 20
-                    if (config.user.isNotEmpty()) {
-                        userName = config.user
-                        if (config.pass.isNotEmpty()) password = config.pass.toCharArray()
+                    if (username.isNotBlank()) {
+                        userName = username
+                        if (password != null) this.password = password.toCharArray()
                     }
                 }
                 client.connect(opts)
@@ -102,11 +162,11 @@ class MqttPublisher {
 
             result.fold(
                 onSuccess = {
-                    Log.d(TAG, "Published to $topic: $it")
-                    onPublishResult(true, "Published to Konker [$topic]")
+                    Log.d(TAG, "[$label] Published [$topic]: $it")
+                    onPublishResult(true, "[$label] Published [$topic]")
                 },
                 onFailure = { e ->
-                    val msg = formatError(e, topic)
+                    val msg = formatError(e, topic, label)
                     Log.e(TAG, msg)
                     onPublishResult(false, msg)
                 }
@@ -114,8 +174,46 @@ class MqttPublisher {
         }
     }
 
-    private fun formatError(e: Throwable, topic: String): String {
+    // ── Payload builders ─────────────────────────────────────────────────────
+
+    /**
+     * ThingsBoard does not need an "id" field — the token identifies the device.
+     * Konker uses the topic for routing but also accepts (and stores) "id" as a
+     * data field, so [includeId] is true for Konker publishes.
+     *
+     * "water_dpt" (water column height, meters) and "water_pct" (fill
+     * percentage) replace the old raw sensor distance field. Both are sent
+     * as JSON null when the tank/cistern total depth hasn't been
+     * configured yet (see WaterColumnReading).
+     */
+    private fun buildCisternPayload(
+        reading: TelemetryReading.Cistern,
+        waterColumn: WaterColumnReading,
+        includeId: Boolean = false
+    ): String = JSONObject().apply {
+        if (includeId) put("id", TelemetryReading.DEVICE_ID_CISTERN)
+        put("water_dpt",  waterColumn.columnMeters ?: JSONObject.NULL)
+        put("water_pct",  waterColumn.percent ?: JSONObject.NULL)
+        put("water_pump", reading.pumpOn)
+        put("batt_lvl",   reading.batteryPercent)
+        put("rssi_lvl",   reading.rssiDbm)
+    }.toString()
+
+    private fun buildTankPayload(
+        reading: TelemetryReading.Tank,
+        waterColumn: WaterColumnReading,
+        includeId: Boolean = false
+    ): String = JSONObject().apply {
+        if (includeId) put("id", TelemetryReading.DEVICE_ID_TANK)
+        put("water_dpt", waterColumn.columnMeters ?: JSONObject.NULL)
+        put("water_pct", waterColumn.percent ?: JSONObject.NULL)
+        put("turbidity", reading.turbidity)
+        put("batt_lvl",  reading.batteryPercent)
+        put("rssi_lvl",  reading.rssiDbm)
+    }.toString()
+
+    private fun formatError(e: Throwable, topic: String, label: String): String {
         val reason = (e as? MqttException)?.let { "reasonCode=${it.reasonCode} " } ?: ""
-        return "MQTT error [$topic]: ${e.javaClass.simpleName} $reason${e.message ?: ""}"
+        return "[$label] MQTT error [$topic]: ${e.javaClass.simpleName} $reason${e.message ?: ""}"
     }
 }
