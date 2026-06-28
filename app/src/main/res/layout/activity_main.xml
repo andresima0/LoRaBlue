@@ -16,7 +16,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginBottom="8dp"
-            android:text="LoRain IoT"
+            android:text="LoRaBlue IoT"
             android:textColor="#333333"
             android:textSize="28sp"
             android:textStyle="bold" />
@@ -44,20 +44,52 @@
             android:textStyle="bold" />
 
         <LinearLayout
+            android:id="@+id/cardCistern"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="16dp"
             android:background="#FFFFFF"
+            android:clickable="true"
             android:elevation="4dp"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:orientation="vertical"
             android:padding="16dp">
 
-            <TextView
-                android:id="@+id/tvCisternWaterLevel"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Water Level: -- m"
-                android:textSize="18sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvCisternWaterLevel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Water Level: -- m"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/tvCisternWaterPercent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:text="(-- %)"
+                    android:textColor="#888888"
+                    android:textSize="16sp" />
+
+                <ImageButton
+                    android:id="@+id/btnCisternDepthConfig"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="Configure Cistern depth"
+                    android:focusable="true"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_gear" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvCisternPump"
@@ -96,20 +128,52 @@
             android:textStyle="bold" />
 
         <LinearLayout
+            android:id="@+id/cardTank"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="32dp"
             android:background="#FFFFFF"
+            android:clickable="true"
             android:elevation="4dp"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:orientation="vertical"
             android:padding="16dp">
 
-            <TextView
-                android:id="@+id/tvTankWaterLevel"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Water Level: -- m"
-                android:textSize="18sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvTankWaterLevel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Water Level: -- m"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:id="@+id/tvTankWaterPercent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:text="(-- %)"
+                    android:textColor="#888888"
+                    android:textSize="16sp" />
+
+                <ImageButton
+                    android:id="@+id/btnTankDepthConfig"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:clickable="true"
+                    android:contentDescription="Configure Tank depth"
+                    android:focusable="true"
+                    android:padding="6dp"
+                    android:src="@drawable/ic_gear" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvTankTurbidity"
@@ -155,7 +219,7 @@
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:backgroundTint="#607D8B"
-            android:text="KONKER SETTINGS" />
+            android:text="PLATFORM SETTINGS" />
 
     </LinearLayout>
 </ScrollView>
