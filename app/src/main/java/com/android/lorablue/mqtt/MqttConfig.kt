@@ -119,18 +119,16 @@ class MqttConfigStore(context: Context) {
      * switches between platforms in the spinner.
      */
     fun loadPlatform(platform: IotPlatform): MqttConfig {
-        val server = prefs.getString("server", "") ?: ""
-        val port   = prefs.getString("port", "1883") ?: "1883"
         return when (platform) {
             IotPlatform.THINGSBOARD -> MqttConfig.ThingsBoard(
-                server       = server,
-                port         = port,
+                server       = prefs.getString("tb_server", "") ?: "",
+                port         = prefs.getString("tb_port", "1883") ?: "1883",
                 cisternToken = prefs.getString("tb_cistern_token", "") ?: "",
                 tankToken    = prefs.getString("tb_tank_token",    "") ?: ""
             )
             IotPlatform.KONKER -> MqttConfig.Konker(
-                server       = server,
-                port         = port,
+                server       = prefs.getString("konker_server", "") ?: "",
+                port         = prefs.getString("konker_port", "1883") ?: "1883",
                 user         = prefs.getString("konker_user",          "") ?: "",
                 pass         = prefs.getString("konker_pass",          "") ?: "",
                 cisternTopic = prefs.getString("konker_cistern_topic", "") ?: "",
@@ -143,21 +141,18 @@ class MqttConfigStore(context: Context) {
         val platformName = prefs.getString("platform", IotPlatform.THINGSBOARD.name)
             ?: IotPlatform.THINGSBOARD.name
 
-        val server = prefs.getString("server", "") ?: ""
-        val port   = prefs.getString("port", "1883") ?: "1883"
-
         return when (platformName) {
             IotPlatform.KONKER.name -> MqttConfig.Konker(
-                server       = server,
-                port         = port,
+                server       = prefs.getString("konker_server", "") ?: "",
+                port         = prefs.getString("konker_port", "1883") ?: "1883",
                 user         = prefs.getString("konker_user", "") ?: "",
                 pass         = prefs.getString("konker_pass", "") ?: "",
                 cisternTopic = prefs.getString("konker_cistern_topic", "") ?: "",
                 tankTopic    = prefs.getString("konker_tank_topic", "") ?: ""
             )
             else -> MqttConfig.ThingsBoard(
-                server       = server,
-                port         = port,
+                server       = prefs.getString("tb_server", "") ?: "",
+                port         = prefs.getString("tb_port", "1883") ?: "1883",
                 cisternToken = prefs.getString("tb_cistern_token", "") ?: "",
                 tankToken    = prefs.getString("tb_tank_token", "") ?: ""
             )
@@ -167,15 +162,17 @@ class MqttConfigStore(context: Context) {
     fun save(config: MqttConfig) {
         prefs.edit {
             putString("platform", config.platform.name)
-            putString("server",   config.server)
-            putString("port",     config.port)
 
             when (config) {
                 is MqttConfig.ThingsBoard -> {
+                    putString("tb_server",        config.server)
+                    putString("tb_port",          config.port)
                     putString("tb_cistern_token", config.cisternToken)
                     putString("tb_tank_token",    config.tankToken)
                 }
                 is MqttConfig.Konker -> {
+                    putString("konker_server",        config.server)
+                    putString("konker_port",          config.port)
                     putString("konker_user",          config.user)
                     putString("konker_pass",          config.pass)
                     putString("konker_cistern_topic", config.cisternTopic)

@@ -71,21 +71,23 @@ class MqttConfigDialog : DialogFragment() {
         }
 
         // ── Shared fields (server + port) ────────────────────────────────────
-
-        val etServer = field("Server", current.server)
-        val etPort   = field("Port (default 1883)", current.port, numeric = true)
-
-        // ── ThingsBoard fields ───────────────────────────────────────────────
+        // Each platform now keeps its own server/port fields so switching
+        // the spinner never overwrites the other platform's broker address.
 
         val tbCurrent = current as? MqttConfig.ThingsBoard
             ?: store.loadPlatform(IotPlatform.THINGSBOARD) as? MqttConfig.ThingsBoard
-            ?: MqttConfig.ThingsBoard(current.server, current.port, "", "")
+            ?: MqttConfig.ThingsBoard("", "1883", "", "")
 
+        val etTbServer = field("Server", tbCurrent.server)
+        val etTbPort   = field("Port (default 1883)", tbCurrent.port, numeric = true)
         val etTbCisternToken = field("Cistern access token", tbCurrent.cisternToken)
         val etTbTankToken    = field("Tank access token",    tbCurrent.tankToken)
 
         val sectionThingsBoard = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
+            addView(label("Broker"))
+            addView(etTbServer)
+            addView(etTbPort)
             addView(label("Device access tokens"))
             addView(etTbCisternToken)
             addView(etTbTankToken)
@@ -95,8 +97,10 @@ class MqttConfigDialog : DialogFragment() {
 
         val konkerCurrent = current as? MqttConfig.Konker
             ?: store.loadPlatform(IotPlatform.KONKER) as? MqttConfig.Konker
-            ?: MqttConfig.Konker(current.server, current.port, "", "", "", "")
+            ?: MqttConfig.Konker("", "1883", "", "", "", "")
 
+        val etKonkerServer       = field("Server",      konkerCurrent.server)
+        val etKonkerPort         = field("Port (default 1883)", konkerCurrent.port, numeric = true)
         val etKonkerUser         = field("Username",      konkerCurrent.user)
         val etKonkerPass         = passwordField("Password", konkerCurrent.pass)
         val etKonkerCisternTopic = field("Cistern topic", konkerCurrent.cisternTopic)
@@ -104,6 +108,9 @@ class MqttConfigDialog : DialogFragment() {
 
         val sectionKonker = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
+            addView(label("Broker"))
+            addView(etKonkerServer)
+            addView(etKonkerPort)
             addView(label("Credentials"))
             addView(etKonkerUser)
             addView(etKonkerPass)
@@ -133,9 +140,6 @@ class MqttConfigDialog : DialogFragment() {
             setPadding(pad, pad, pad, pad)
             addView(label("Platform"))
             addView(spinner)
-            addView(label("Broker"))
-            addView(etServer)
-            addView(etPort)
             addView(formContainer)   // swapped out by spinner selection
         }
 
@@ -148,8 +152,7 @@ class MqttConfigDialog : DialogFragment() {
                     IotPlatform.KONKER      -> sectionKonker
                 }
             )
-            // Mirror server/port into the newly visible section's pre-fill
-            // (fields are shared, nothing to copy — they're the same EditTexts)
+
         }
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
@@ -169,18 +172,16 @@ class MqttConfigDialog : DialogFragment() {
             .setView(ScrollView(ctx).apply { addView(root) })
             .setPositiveButton("Save") { _, _ ->
 
-                val server = etServer.text.toString().trim()
-                val port   = etPort.text.toString().trim().ifEmpty { "1883" }
-
-                if (server.isBlank()) {
-                    Toast.makeText(ctx, "Server address is required", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-
                 val selectedPlatform = platforms[spinner.selectedItemPosition]
                 val config: MqttConfig = when (selectedPlatform) {
 
                     IotPlatform.THINGSBOARD -> {
+                        val server = etTbServer.text.toString().trim()
+                        val port   = etTbPort.text.toString().trim().ifEmpty { "1883" }
+                        if (server.isBlank()) {
+                            Toast.makeText(ctx, "Server address is required", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
                         val cfg = MqttConfig.ThingsBoard(
                             server       = server,
                             port         = port,
@@ -198,6 +199,12 @@ class MqttConfigDialog : DialogFragment() {
                     }
 
                     IotPlatform.KONKER -> {
+                        val server = etKonkerServer.text.toString().trim()
+                        val port   = etKonkerPort.text.toString().trim().ifEmpty { "1883" }
+                        if (server.isBlank()) {
+                            Toast.makeText(ctx, "Server address is required", Toast.LENGTH_SHORT).show()
+                            return@setPositiveButton
+                        }
                         val cfg = MqttConfig.Konker(
                             server       = server,
                             port         = port,

@@ -82,5 +82,6 @@ class ChartActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         viewModel.points.observe(this) { points -> lineChartView.setPoints(points) }
+        viewModel.yRange.observe(this) { range -> lineChartView.setYRange(range) }
     }
 }

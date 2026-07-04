@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
+import com.android.lorablue.data.TankDepthConfigStore
 
 /**
  * Holds chart-screen state: which device this screen is showing, which
@@ -19,6 +20,7 @@ import androidx.lifecycle.MediatorLiveData
 class ChartViewModel(application: Application) : AndroidViewModel(application) {
 
     private val store = TelemetryStore(application)
+    private val tankDepthConfigStore = TankDepthConfigStore(application)
 
     companion object {
         const val WINDOW_MILLIS = 10L * 60_000 // 10 minutes
@@ -31,6 +33,15 @@ class ChartViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _points = MediatorLiveData<List<Pair<Long, Double>>>()
     val points: LiveData<List<Pair<Long, Double>>> = _points
+
+    /**
+     * Fixed Y-axis range for the current metric, or null to auto-scale.
+     * Only non-null for [ChartMetric.WATER_LEVEL] when the user has already
+     * configured the total depth for this device via the gear icon — the
+     * range is then [0.0, totalDepth], matching the physical empty/full bounds.
+     */
+    private val _yRange = MediatorLiveData<Pair<Double, Double>?>()
+    val yRange: LiveData<Pair<Double, Double>?> = _yRange
 
     private var lastAllSamples: List<TelemetrySample> = emptyList()
 
@@ -64,5 +75,15 @@ class ChartViewModel(application: Application) : AndroidViewModel(application) {
         val metric = _selectedMetric.value ?: return
         val deviceSamples = store.filterRange(lastAllSamples, deviceId, WINDOW_MILLIS)
         _points.value = deviceSamples.map { it.timestamp to metric.extractValue(it) }
+
+        // For WATER_LEVEL, pin the Y axis to the physical [0, totalDepth] range
+        // so the chart always reads against a consistent scale instead of
+        // auto-scaling to whatever values happen to be in the current window.
+        // For all other metrics keep auto-scaling (null = no fixed range).
+        _yRange.value = if (metric == ChartMetric.WATER_LEVEL) {
+            tankDepthConfigStore.getTotalDepth(deviceId)?.let { 0.0 to it }
+        } else {
+            null
+        }
     }
 }

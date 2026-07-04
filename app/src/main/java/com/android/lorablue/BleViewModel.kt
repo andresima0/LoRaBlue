@@ -111,11 +111,13 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
                 mqttPublisher.publish(mqttConfig, message.reading, waterColumn)
                 // Persists every reading via SharedPreferences (see
                 // TelemetryStore) so ChartActivity has a 10-minute history
-                // to plot. This runs independently of MQTT/BLE forwarding
-                // — chart history keeps growing even if Konker isn't
-                // configured or the app is momentarily disconnected from
-                // the gateway between readings.
-                telemetryStore.record(toSample(message.reading))
+                // to plot. waterColumn is passed in so the stored waterLevel
+                // field holds the converted column height (water_dpt, meters
+                // of water above the bottom) — the same value shown on the
+                // cards and sent to MQTT. Falls back to the raw sensor
+                // distance when depth hasn't been configured yet
+                // (columnMeters == null).
+                telemetryStore.record(toSample(message.reading, waterColumn))
             }
             is BleMessage.Debug -> _debugLog.postValue(message.text)
             is BleMessage.Unknown -> { /* logged inside JsonParser already */ }
@@ -148,13 +150,17 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
         return WaterLevelCalculator.compute(sensorDistance, totalDepth)
     }
 
-    private fun toSample(reading: TelemetryReading): TelemetrySample {
+    private fun toSample(reading: TelemetryReading, waterColumn: WaterColumnReading): TelemetrySample {
         val now = System.currentTimeMillis()
+        // Store the converted column height (water_dpt) when available so the
+        // chart shows the same value as the card and the MQTT payload. When
+        // the depth hasn't been configured yet columnMeters is null and we
+        // fall back to the raw sensor distance so the chart still has data.
         return when (reading) {
             is TelemetryReading.Cistern -> TelemetrySample(
                 deviceId = TelemetryReading.DEVICE_ID_CISTERN,
                 timestamp = now,
-                waterLevel = reading.waterLevel,
+                waterLevel = waterColumn.columnMeters ?: reading.waterLevel,
                 batteryPercent = reading.batteryPercent,
                 rssiDbm = reading.rssiDbm,
                 pumpOn = reading.pumpOn
@@ -162,7 +168,7 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
             is TelemetryReading.Tank -> TelemetrySample(
                 deviceId = TelemetryReading.DEVICE_ID_TANK,
                 timestamp = now,
-                waterLevel = reading.waterLevel,
+                waterLevel = waterColumn.columnMeters ?: reading.waterLevel,
                 batteryPercent = reading.batteryPercent,
                 rssiDbm = reading.rssiDbm,
                 turbidity = reading.turbidity

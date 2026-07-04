@@ -25,6 +25,7 @@ import com.android.lorablue.data.TankDepthConfigStore
 import com.android.lorablue.data.TelemetryReading
 import com.android.lorablue.data.WaterLevelCalculator
 import com.android.lorablue.mqtt.MqttConfigDialog
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 /**
  * Pure UI layer: binds views, observes BleViewModel via LiveData, and wires
@@ -120,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
