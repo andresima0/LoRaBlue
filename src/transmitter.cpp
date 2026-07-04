@@ -31,8 +31,6 @@ void setup() {
     // Initialize I2C and VL53L1X
     setup_sensors();
 
-    analogReadResolution(10);
-
     data.id = DEVICE_ID;
 
     Serial.print(F("[TX] Device role: "));
@@ -46,7 +44,7 @@ void loop() {
 
         data.water_lvl = get_water_lvl();
         data.bat_percent = get_battery_percent();
-        
+
      #if DEVICE_ID == DEVICE_ID_CISTERN
             data.turbidity = 0.0f;
             data.pump_status = get_pump_status();

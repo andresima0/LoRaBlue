@@ -17,6 +17,7 @@ bool setup_sensors(void) {
 
     pinMode(PUMP_STATUS_PIN, INPUT_PULLUP);
 
+    pinMode(PIN_VBAT, INPUT);
     pinMode(VBAT_ENABLE, OUTPUT);
     digitalWrite(VBAT_ENABLE, HIGH);
 
@@ -55,14 +56,24 @@ bool get_pump_status(void) {
     return digitalRead(PUMP_STATUS_PIN) == LOW;
 }
 
-float get_battery_percent(void) {
+float get_battery_voltage(void) {
+    analogReference(AR_DEFAULT);
+    analogReadResolution(12);
+
     digitalWrite(VBAT_ENABLE, LOW);
     delay(5);
-
-    int rawBat = analogRead(PIN_VBAT);
-
+    uint16_t adcCount = analogRead(PIN_VBAT);
     digitalWrite(VBAT_ENABLE, HIGH);
 
-    int constrainedBat = constrain(rawBat, BATT_ADC_MIN, BATT_ADC_MAX);
-    return map(constrainedBat, BATT_ADC_MIN, BATT_ADC_MAX, 0, 100);
+    analogReference(AR_DEFAULT);
+    analogReadResolution(10);
+
+    float adcVoltage = adcCount * BATT_VREF / BATT_ADC_MAX;
+    return adcVoltage * BATT_DIVIDER_RATIO;
+}
+
+float get_battery_percent(void) {
+    float v = get_battery_voltage();
+    float pct = (v - BATT_VOLT_EMPTY) / (BATT_VOLT_FULL - BATT_VOLT_EMPTY) * 100.0f;
+    return constrain(pct, 0.0f, 100.0f);
 }
