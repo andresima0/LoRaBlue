@@ -51,7 +51,7 @@ void loop() {
         data.bat_percent = 100;
      #if DEVICE_ID == DEVICE_ID_CISTERN
             data.turbidity = 0.0f;
-            data.pump_status = false;
+            data.pump_status = get_pump_status();
             
         #elif DEVICE_ID == DEVICE_ID_TANK
             data.turbidity = get_turbidity();

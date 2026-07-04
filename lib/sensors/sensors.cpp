@@ -16,6 +16,8 @@ bool setup_sensors(void) {
     distance_sensor.setDistanceModeShort();
     distance_sensor.startRanging();
 
+     pinMode(PUMP_STATUS_PIN, INPUT_PULLUP);
+
     return true;
 }
 
@@ -45,4 +47,8 @@ float get_water_lvl(void) {
         distance_sensor.clearInterrupt();
     }
     return distance / 1000.0f;
+}
+
+bool get_pump_status(void) {
+    return digitalRead(PUMP_STATUS_PIN) == LOW;
 }

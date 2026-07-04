@@ -6,6 +6,7 @@
 #include <Wire.h>
 
 #define TURBIDITY_PIN A0
+#define PUMP_STATUS_PIN D0
 
 #define CLEAN_WATER 875
 #define DIRTY_WATER 30
@@ -20,5 +21,6 @@ bool setup_sensors(void);
 
 float get_turbidity(void);
 float get_water_lvl(void);
+bool  get_pump_status(void);
 
 #endif
