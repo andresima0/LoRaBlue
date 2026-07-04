@@ -4,7 +4,6 @@ TwoWire i2c_conn(NRF_TWIM1, NRF_TWIS1, SPIM1_SPIS1_TWIM1_TWIS1_SPI1_TWI1_IRQn,
                  MY_SDA, MY_SCL);
 SFEVL53L1X distance_sensor(i2c_conn);
 
-// #TODO: add initial steps check for turbidity value
 bool setup_sensors(void) {
 
     i2c_conn.begin();
@@ -16,7 +15,10 @@ bool setup_sensors(void) {
     distance_sensor.setDistanceModeShort();
     distance_sensor.startRanging();
 
-     pinMode(PUMP_STATUS_PIN, INPUT_PULLUP);
+    pinMode(PUMP_STATUS_PIN, INPUT_PULLUP);
+
+    pinMode(VBAT_ENABLE, OUTPUT);
+    digitalWrite(VBAT_ENABLE, HIGH);
 
     return true;
 }
@@ -51,4 +53,16 @@ float get_water_lvl(void) {
 
 bool get_pump_status(void) {
     return digitalRead(PUMP_STATUS_PIN) == LOW;
+}
+
+float get_battery_percent(void) {
+    digitalWrite(VBAT_ENABLE, LOW);
+    delay(5);
+
+    int rawBat = analogRead(PIN_VBAT);
+
+    digitalWrite(VBAT_ENABLE, HIGH);
+
+    int constrainedBat = constrain(rawBat, BATT_ADC_MIN, BATT_ADC_MAX);
+    return map(constrainedBat, BATT_ADC_MIN, BATT_ADC_MAX, 0, 100);
 }

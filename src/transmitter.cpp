@@ -31,9 +31,6 @@ void setup() {
     // Initialize I2C and VL53L1X
     setup_sensors();
 
-    // Battery read adjustments
-    pinMode(VBAT_ENABLE, OUTPUT);
-    digitalWrite(VBAT_ENABLE, HIGH);
     analogReadResolution(10);
 
     data.id = DEVICE_ID;
@@ -48,7 +45,8 @@ void loop() {
         last_tx_time = millis();
 
         data.water_lvl = get_water_lvl();
-        data.bat_percent = 100;
+        data.bat_percent = get_battery_percent();
+        
      #if DEVICE_ID == DEVICE_ID_CISTERN
             data.turbidity = 0.0f;
             data.pump_status = get_pump_status();
