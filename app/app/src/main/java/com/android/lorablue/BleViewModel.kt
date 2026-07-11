@@ -34,11 +34,15 @@ import com.android.lorablue.mqtt.MqttPublisher
  * this ViewModel forwards it to MqttPublisher for EVERY currently enabled
  * platform config in [mqttConfigs] — not just a single "active" platform.
  * Both ThingsBoard and Konker can be enabled at the same time (see
- * MqttConfigDialog), so the same reading gets published to both brokers
- * in that case. Calling [onMqttConfigUpdated] from MainActivity's dialog
- * callback refreshes that in-memory list immediately — publishes right
- * after saving the dialog will use the new credentials/topics without
- * re-reading SharedPreferences on the next background thread hop.
+ * MqttSettingsActivity), so the same reading gets published to both
+ * brokers in that case.
+ *
+ * MqttSettingsActivity (a full-screen Activity — see its class comment for
+ * why this isn't a Dialog anymore) persists settings directly to
+ * MqttConfigStore rather than passing them back through an Intent. So
+ * instead of receiving the new configs as a callback argument, MainActivity
+ * simply calls [reloadMqttConfigs] after the settings screen returns with
+ * RESULT_OK, and this ViewModel re-reads the enabled configs itself.
  *
  * Water level conversion: every Telemetry message also carries the raw
  * TOF sensor distance (`reading.waterLevel`). Before publishing, that
@@ -59,9 +63,10 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
 
     // In-memory cache of every ENABLED platform config (ThingsBoard and/or
     // Konker). Loaded once from SharedPreferences in init{} and refreshed
-    // via onMqttConfigUpdated() when the user saves the settings dialog —
-    // avoids a disk read on every telemetry message. A platform absent from
-    // this list (disabled, or not configured) is simply never published to.
+    // via reloadMqttConfigs() when MainActivity reports that
+    // MqttSettingsActivity saved new settings — avoids a disk read on every
+    // telemetry message. A platform absent from this list (disabled, or not
+    // configured) is simply never published to.
     @Volatile
     private var mqttConfigs: List<MqttConfig> = mqttConfigStore.loadAllEnabled()
 
@@ -93,15 +98,18 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
-     * Called by MainActivity immediately after MqttConfigDialog saves new
-     * settings. [newConfigs] contains only the currently ENABLED platform
-     * configs (zero, one, or both). Updates the in-memory cache so that the
-     * very next reading (which may arrive within seconds on a live BLE
-     * connection) already publishes to exactly this set of platforms — no
-     * app restart or SharedPreferences re-read required.
+     * Called by MainActivity's ActivityResultLauncher callback after
+     * MqttSettingsActivity finishes with RESULT_OK. Re-reads whichever
+     * platform configs are currently enabled straight from
+     * MqttConfigStore (SharedPreferences) — the settings screen persists
+     * directly to the store itself, so this is simpler than threading the
+     * saved MqttConfig objects back through an Intent. Updates the
+     * in-memory cache so that the very next reading (which may arrive
+     * within seconds on a live BLE connection) already publishes to
+     * exactly this set of platforms — no app restart required.
      */
-    fun onMqttConfigUpdated(newConfigs: List<MqttConfig>) {
-        mqttConfigs = newConfigs
+    fun reloadMqttConfigs() {
+        mqttConfigs = mqttConfigStore.loadAllEnabled()
     }
 
     private fun handleMessage(message: BleMessage) {

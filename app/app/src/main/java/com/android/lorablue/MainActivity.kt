@@ -24,14 +24,14 @@ import com.android.lorablue.data.TankDepthConfigDialog
 import com.android.lorablue.data.TankDepthConfigStore
 import com.android.lorablue.data.TelemetryReading
 import com.android.lorablue.data.WaterLevelCalculator
-import com.android.lorablue.mqtt.MqttConfigDialog
+import com.android.lorablue.mqtt.MqttSettingsActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 /**
  * Pure UI layer: binds views, observes BleViewModel via LiveData, and wires
  * click listeners. Contains no BLE/GATT logic — see BleManager and
  * BleViewModel for that. Contains no MQTT logic either — see MqttPublisher
- * and MqttConfigDialog.
+ * and MqttSettingsActivity.
  *
  * Two telemetry cards are shown: Cistern (id=1) and Tank (id=2). Each is
  * updated independently as its corresponding LiveData emits — receiving a
@@ -39,9 +39,11 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
  * vice versa.
  *
  * Tapping a card opens ChartActivity for that device. The MQTT settings
- * dialog calls viewModel.onMqttConfigUpdated() on save so that subsequent
- * publishes immediately use the new config without waiting for a cold
- * re-read from SharedPreferences.
+ * screen (MqttSettingsActivity — a full-screen Activity, not a Dialog; see
+ * its class comment for why) is launched via [mqttSettingsLauncher]. It
+ * persists directly to MqttConfigStore, so on RESULT_OK this Activity just
+ * tells the ViewModel to reload its in-memory config cache from that store
+ * — no data needs to travel back through the Intent itself.
  */
 @SuppressLint("MissingPermission")
 class MainActivity : AppCompatActivity() {
@@ -117,6 +119,20 @@ class MainActivity : AppCompatActivity() {
                     "Bluetooth must be enabled to connect to the Gateway.",
                     Toast.LENGTH_LONG
                 ).show()
+            }
+        }
+
+    // Launches MqttSettingsActivity (replaces the old MqttConfigDialog,
+    // which never got a working soft keyboard on this project's target
+    // hardware — see MqttSettingsActivity's class comment). On RESULT_OK,
+    // re-reads whichever platforms are now enabled straight from
+    // MqttConfigStore via the ViewModel — the settings screen persists
+    // directly to SharedPreferences, so there's nothing to pass back
+    // through the Intent itself.
+    private val mqttSettingsLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                viewModel.reloadMqttConfigs()
             }
         }
 
@@ -206,14 +222,7 @@ class MainActivity : AppCompatActivity() {
 
         // --- MQTT settings --------------------------------------------------
         btnSettings.setOnClickListener {
-            val dialog = MqttConfigDialog()
-            // Wire the saved callback so the ViewModel's in-memory config is
-            // refreshed immediately — publishes right after saving will use
-            // the new credentials/topics without requiring an app restart.
-            dialog.onConfigSaved = { newConfig ->
-                viewModel.onMqttConfigUpdated(newConfig)
-            }
-            dialog.show(supportFragmentManager, MqttConfigDialog.TAG)
+            mqttSettingsLauncher.launch(MqttSettingsActivity.newIntent(this))
         }
     }
 
@@ -254,8 +263,10 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
         }
 
-        // Konker MQTT publish outcomes (success/failure), surfaced the
-        // same lightweight way as BLE debug messages.
+        // MQTT publish outcomes (success/failure), surfaced the same
+        // lightweight way as BLE debug messages. Each enabled platform
+        // (ThingsBoard and/or Konker) reports independently, so a failure
+        // on one doesn't hide a simultaneous success on the other.
         viewModel.mqttStatus.observe(this) { text ->
             Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
         }

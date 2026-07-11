@@ -35,12 +35,12 @@
             </intent-filter>
         </activity>
 
-        <!--
-            ChartActivity is launched from MainActivity when the user taps a
-            device card (Cistern or Tank). It is NOT exported — only this app
-            starts it via an explicit Intent carrying EXTRA_DEVICE_ID and
-            EXTRA_DEVICE_NAME.
-        -->
+        <activity
+            android:name=".mqtt.MqttSettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity
             android:name=".chart.ChartActivity"
             android:exported="false"
