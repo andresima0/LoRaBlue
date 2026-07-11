@@ -30,12 +30,15 @@ import com.android.lorablue.mqtt.MqttPublisher
  * the UI updates whichever card corresponds to the device that just sent
  * a reading, without touching the other card's last-known values.
  *
- * Konker publishing: every time a Telemetry message arrives, this
- * ViewModel forwards it to MqttPublisher using the in-memory [mqttConfig]
- * cache. Calling [onMqttConfigUpdated] from MainActivity's dialog callback
- * refreshes that cache immediately — publishes right after saving the
- * dialog will use the new credentials/topics without re-reading
- * SharedPreferences on the next background thread hop.
+ * Konker/ThingsBoard publishing: every time a Telemetry message arrives,
+ * this ViewModel forwards it to MqttPublisher for EVERY currently enabled
+ * platform config in [mqttConfigs] — not just a single "active" platform.
+ * Both ThingsBoard and Konker can be enabled at the same time (see
+ * MqttConfigDialog), so the same reading gets published to both brokers
+ * in that case. Calling [onMqttConfigUpdated] from MainActivity's dialog
+ * callback refreshes that in-memory list immediately — publishes right
+ * after saving the dialog will use the new credentials/topics without
+ * re-reading SharedPreferences on the next background thread hop.
  *
  * Water level conversion: every Telemetry message also carries the raw
  * TOF sensor distance (`reading.waterLevel`). Before publishing, that
@@ -43,7 +46,8 @@ import com.android.lorablue.mqtt.MqttPublisher
  * [WaterLevelCalculator], using the per-device total depth the user set
  * through the gear icon (see [TankDepthConfigStore]). The MQTT payload
  * therefore reports the already-converted values ("water_dpt"/"water_pct"),
- * not the raw sensor distance.
+ * not the raw sensor distance. This conversion is shared across all
+ * enabled platforms — it only needs to happen once per incoming reading.
  */
 class BleViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -53,11 +57,13 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
     private val telemetryStore = TelemetryStore(application)
     private val tankDepthConfigStore = TankDepthConfigStore(application)
 
-    // In-memory cache of the MQTT config. Loaded once from SharedPreferences
-    // in init{} and refreshed via onMqttConfigUpdated() when the user saves
-    // the settings dialog — avoids a disk read on every telemetry message.
+    // In-memory cache of every ENABLED platform config (ThingsBoard and/or
+    // Konker). Loaded once from SharedPreferences in init{} and refreshed
+    // via onMqttConfigUpdated() when the user saves the settings dialog —
+    // avoids a disk read on every telemetry message. A platform absent from
+    // this list (disabled, or not configured) is simply never published to.
     @Volatile
-    private var mqttConfig: MqttConfig = mqttConfigStore.load()
+    private var mqttConfigs: List<MqttConfig> = mqttConfigStore.loadAllEnabled()
 
     private val _connectionState =
         MutableLiveData<BleConnectionState>(BleConnectionState.Disconnected)
@@ -74,7 +80,9 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
 
     // Surfaces MQTT publish outcomes (success/failure) separately from BLE
     // debug messages so the UI can distinguish "firmware said X" from
-    // "Konker publish succeeded/failed" if it wants to.
+    // "platform publish succeeded/failed" if it wants to. Each enabled
+    // platform reports independently, so a ThingsBoard failure doesn't
+    // hide a simultaneous Konker success (or vice versa).
     private val _mqttStatus = MutableLiveData<String>()
     val mqttStatus: LiveData<String> = _mqttStatus
 
@@ -86,13 +94,14 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
 
     /**
      * Called by MainActivity immediately after MqttConfigDialog saves new
-     * settings. Updates the in-memory cache so that the very next publish
-     * (which may arrive within seconds on a live BLE connection) already
-     * uses the new config — no app restart or SharedPreferences re-read
-     * required.
+     * settings. [newConfigs] contains only the currently ENABLED platform
+     * configs (zero, one, or both). Updates the in-memory cache so that the
+     * very next reading (which may arrive within seconds on a live BLE
+     * connection) already publishes to exactly this set of platforms — no
+     * app restart or SharedPreferences re-read required.
      */
-    fun onMqttConfigUpdated(newConfig: MqttConfig) {
-        mqttConfig = newConfig
+    fun onMqttConfigUpdated(newConfigs: List<MqttConfig>) {
+        mqttConfigs = newConfigs
     }
 
     private fun handleMessage(message: BleMessage) {
@@ -105,10 +114,19 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
                 // Convert the raw TOF sensor distance into a water column
                 // height + fill percentage before publishing — the MQTT
                 // payload should report the converted reading, not the raw
-                // distance. Use the in-memory mqttConfig cache too, to
-                // avoid a SharedPreferences disk read on every packet.
+                // distance. Computed once per reading and reused for every
+                // enabled platform below.
                 val waterColumn = toWaterColumn(message.reading)
-                mqttPublisher.publish(mqttConfig, message.reading, waterColumn)
+
+                // Publish to every currently enabled platform. MqttPublisher
+                // already no-ops per-device when that device isn't configured
+                // for a given platform (see isCisternConfigured/isTankConfigured),
+                // and each publish runs on its own background thread, so
+                // publishing to two platforms here never blocks on the other.
+                mqttConfigs.forEach { config ->
+                    mqttPublisher.publish(config, message.reading, waterColumn)
+                }
+
                 // Persists every reading via SharedPreferences (see
                 // TelemetryStore) so ChartActivity has a 10-minute history
                 // to plot. waterColumn is passed in so the stored waterLevel
@@ -139,7 +157,8 @@ class BleViewModel(application: Application) : AndroidViewModel(application) {
      * (`waterLevel`) into a [WaterColumnReading] using this device's
      * user-configured total depth. Returns column/percent = null when the
      * depth hasn't been configured yet for this device id — callers
-     * (MqttPublisher) send those as JSON null in that case.
+     * (MqttPublisher, for every enabled platform) send those as JSON null
+     * in that case.
      */
     private fun toWaterColumn(reading: TelemetryReading): WaterColumnReading {
         val (deviceId, sensorDistance) = when (reading) {
