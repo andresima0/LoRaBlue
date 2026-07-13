@@ -227,7 +227,7 @@ On first launch, grant the requested runtime permissions:
 - Android Developers — *Bluetooth Low Energy overview*: https://developer.android.com/develop/connectivity/bluetooth/ble/ble-overview
 - Eclipse Foundation — *Eclipse Paho MQTT Client*: https://eclipse.dev/paho/ · https://github.com/eclipse-paho/paho.mqtt.java
 - ThingsBoard — *MQTT Device API*: https://thingsboard.io/docs/reference/mqtt-api/
-- Konker Labs — *Platform guide*: https://konker.atlassian.net/wiki/spaces/DEV/pages/28180518 · https://github.com/KonkerLabs/konker-platform
+- Konker Labs — *konker-platform*: https://github.com/KonkerLabs/konker-platform
 - Nordic Semiconductor — *Nordic UART Service (NUS)*: https://docs.nordicsemi.com/bundle/ncs-3.0.2/page/nrf/libraries/bluetooth/services/nus.html
 - Jan Gromeš — *RadioLib*: https://github.com/jgromes/RadioLib
 - Adafruit — *Adafruit_nRF52_Arduino* (Bluefruit BSP): https://github.com/adafruit/Adafruit_nRF52_Arduino
@@ -466,7 +466,7 @@ Na primeira execução, conceda as permissões solicitadas em tempo de execuçã
 - Android Developers — *Bluetooth Low Energy overview*: https://developer.android.com/develop/connectivity/bluetooth/ble/ble-overview
 - Eclipse Foundation — *Eclipse Paho MQTT Client*: https://eclipse.dev/paho/ · https://github.com/eclipse-paho/paho.mqtt.java
 - ThingsBoard — *MQTT Device API*: https://thingsboard.io/docs/reference/mqtt-api/
-- Konker Labs — guia da plataforma: https://konker.atlassian.net/wiki/spaces/DEV/pages/28180518 · https://github.com/KonkerLabs/konker-platform
+- Konker Labs — *konker-platform*: https://github.com/KonkerLabs/konker-platform
 - Nordic Semiconductor — *Nordic UART Service (NUS)*: https://docs.nordicsemi.com/bundle/ncs-3.0.2/page/nrf/libraries/bluetooth/services/nus.html
 - Jan Gromeš — *RadioLib*: https://github.com/jgromes/RadioLib
 - Adafruit — *Adafruit_nRF52_Arduino* (BSP Bluefruit): https://github.com/adafruit/Adafruit_nRF52_Arduino
